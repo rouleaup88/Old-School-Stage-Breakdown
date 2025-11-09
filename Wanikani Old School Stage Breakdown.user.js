@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wanikani Old School Stage Breakdown
 // @namespace    Wanikani prouleau
-// @version      1.0.0
+// @version      1.1.0
 // @description  Detailed breakdown of srs stages with old dashboard UI
 // @author       prouleau
 // @match        https://www.wanikani.com/*
@@ -9,6 +9,8 @@
 // @license      MIT; http://opensource.org/licenses/MIT
 // @run-at       document-start
 // @grant        none
+// @downloadURL https://update.greasyfork.org/scripts/554663/Wanikani%20Old%20School%20Stage%20Breakdown.user.js
+// @updateURL https://update.greasyfork.org/scripts/554663/Wanikani%20Old%20School%20Stage%20Breakdown.meta.js
 // ==/UserScript==
 
 (function() {
@@ -91,7 +93,7 @@
                                       content: {After: 'After', Before: 'Before',},
                                      },
                         leech_threshold: {type:'number', label:'Leech Threshold', default:1.0, hover_tip:'The value at or above which an item is considered a leech.'},
-                    }},
+                   }},
                 }}
             }
         };
@@ -119,7 +121,7 @@
 
     //========================================================================
     // Startup
-    //-------------------------------------------------------------------
+    //------------------------------------------------------------------------
     function startup() {
         install_css();
         return wkof.ready('document').then(init);
@@ -145,8 +147,63 @@
             })
             .then(function(data){items = data;
                      insert_container();
+                     setThemeWatcher();
                      populate_dashboard().then(function(){wkof.set_state('ossb_init', 'ready')})
                     });
+        };
+    };
+
+    //========================================================================
+    // Handy little function that rfindley wrote. Checks whether the theme is dark.
+    // must be MIT license
+    //------------------------------------------------------------------------
+    function is_dark_theme() {
+        // Grab the <html> background color, average the RGB.  If less than 50% bright, it's dark theme.
+        return $('body').css('background-color').match(/\((.*)\)/)[1].split(',').slice(0,3).map(str => Number(str)).reduce((a, i) => a+i)/(255*3) < 0.5;
+    }
+
+    //========================================================================
+    // A mutation observer detects the change of style and set classes accordingly
+    //------------------------------------------------------------------------
+
+    var themeWatcher;
+    function setThemeWatcher(){
+        setThemeClasses(null, null)
+        themeWatcher = new MutationObserver(setThemeClasses);
+        themeWatcher.observe($('html')[0], {childList: true, subtree: false, attributes: false, characterData: false});
+        themeWatcher.observe($('head')[0], {childList: true, subtree: false, attributes: false, characterData: false});
+    };
+
+    function setThemeClasses(mutations, caller){
+        const BreezeDarkBackground = 'rgb(49, 54, 59)';
+        const ElementaryDarkColor = 'rgb(244, 244, 244)';
+
+        let is_dark = is_dark_theme();
+        let elem = document.getElementById('ossbContainer');
+        let is_container_dark = window.getComputedStyle(elem).backgroundColor.toString().match(/\((.*)\)/)[1].split(',').slice(0,3).map(str => Number(str)).reduce((a, i) => a+i)/(255*3) < 0.5;
+        if (elem === null){
+            // Turbo has changed page, the observer must be stopped
+            if (themeWatcher !== null && themeWatcher !== undefined) {
+                try {
+                    themeWatcher.disconnect();
+                } catch({name, message}) {
+                    console.log(name);
+                    console.log(message);
+                };
+                themeWatcher = null;
+            };
+        } else if (!is_dark && !is_container_dark){
+            elem.classList.remove('ossb_Breeze', 'ossb_Elementary', 'ossb_Dark');
+            elem.classList.add('ossb_Light');
+        } else {
+            let backgroundColor = $('body').css('background-color');
+            if (backgroundColor === BreezeDarkBackground){
+                    elem.classList.remove('ossb_Light', 'ossb_Elementary');
+                    elem.classList.add('ossb_Breeze', 'ossb_Dark');
+           } else if (backgroundColor === ElementaryDarkColor){
+                    elem.classList.remove('ossb_Light', 'ossb_Breeze');
+                    elem.classList.add('ossb_Elementary', 'ossb_Dark');
+           };
         };
     };
 
@@ -155,34 +212,57 @@
     //-------------------------------------------------------------------
     let ossb_css =
         '#ossbContainer {padding: 16px; --ossb-division-size: 219px}'+
-        '#ossbContainer {background-color: rgb(255,255,255); border-color:rgb(202,208,214); border-width: 1px; border-radius: 16px; border-style: solid; width:100%;}'+
+        '#ossbContainer {background-color: var(--color-widget-background); border-color:var(--color-widget-border); border-width: 1px; border-radius: 16px; border-style:'+
+                        ' solid; width:100%; --ossb-color-burned-elementary: #4d4d4d}'+
         '#ossbContainer.ossbFullWidth {margin-bottom: 24px;}'+
         '#ossbContainer #ossb_top_container {height:195px; width: 1120px; margin: 0px 10px 10px; padding: 10px; '+
                                             'display: flex; flex-basis:0px; flex-grow:1; flex-shrink:1; flex-wrap:wrap;}'+
         '#ossbContainer .ossb_division {width: var(--ossb-division-size);}'+
 
-        '#ossbContainer #ossb_Apprentice_division {background-color: rgb(255, 51, 187); border-radius:8px; padding:7px;}'+
-        '#ossbContainer #ossb_Guru_division {background-color: rgb(187, 96, 210); border-radius:8px; padding:7px;}'+
-        '#ossbContainer #ossb_Master_division {background-color: rgb(124, 146, 233); border-radius:8px; padding:7px;}'+
-        '#ossbContainer #ossb_Enlightened_division {background-color: rgb(0, 170, 255); border-radius:8px; padding:7px;}'+
-        '#ossbContainer #ossb_Burned_division {background-color: black; border-radius:8px; padding:7px;}'+
-        '#ossbContainer .ossb_division_title {color: white; font-weight: 700;}'+
+        '#ossbContainer.ossb_Light #ossb_Apprentice_division {background-color: rgb(255, 51, 187); border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Elementary #ossb_Apprentice_division {background-color: rgb(255, 51, 187); border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Breeze #ossb_Apprentice_division {background-color: var(--color-apprentice); border-radius:8px; padding:7px;}'+
+
+        '#ossbContainer.ossb_Light #ossb_Guru_division {background-color: rgb(187, 96, 210); border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Elementary #ossb_Guru_division {background-color: rgb(187, 96, 210); border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Breeze #ossb_Guru_division {background-color: var(--color-guru); border-radius:8px; padding:7px;}'+
+
+        '#ossbContainer.ossb_Light #ossb_Master_division {background-color: rgb(124, 146, 233); border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Elementary #ossb_Master_division {background-color: rgb(124, 146, 233); border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Breeze #ossb_Master_division {background-color: var(--color-master); border-radius:8px; padding:7px;}'+
+
+        '#ossbContainer.ossb_Light #ossb_Enlightened_division {background-color: rgb(0, 170, 255); border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Elementary #ossb_Enlightened_division {background-color: rgb(0, 170, 255); border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Breeze #ossb_Enlightened_division {background-color: var(--color-enlightened); border-radius:8px; padding:7px;}'+
+
+        '#ossbContainer.ossb_Light #ossb_Burned_division {background-color: black; border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Elementary #ossb_Burned_division {background-color: var(--ossb-color-burned-elementary); border-radius:8px; padding:7px;}'+
+        '#ossbContainer.ossb_Breeze #ossb_Burned_division {background-color: var(--ossb-color-burned); border-radius:8px; padding:7px;}'+
+
+        '#ossbContainer .ossb_division_title {color:white; font-weight: 700;}'+
+        '#ossbContainer.ossb_Dark .ossb_division_title {color:var(--color-text); font-weight: 700;}'+
 
         '#ossbContainer .ossb_division_data_container {display: flex; flex-basis:0px; flex-grow:1; flex-shrink:1; flex-wrap:wrap; margin-top:10px;}'+
         '#ossbContainer .ossb_data_block {padding-right:4px; padding-top:2px; padding-bottom:2px; padding-left:2px; background-color:rgb(233,231,235); font-size: 14px; margin-top:4px;}'+
+        '#ossbContainer.ossb_Dark .ossb_data_block {background-color:rgb(222,222,222);}'+
         '#ossbContainer .ossb_data_block.ossb_leeches{ margin-top: 15px; }'+
         '#ossbContainer .ossb_label {border-color: #777; border-top-width: 1px; border-bottom-width: 1px; border-left-width: 1px; border-right-width: 0px; '+
                                     'border-top-left-radius: 3px; border-bottom-left-radius: 3px; border-top-right-radius: 0px; border-bottom-right-radius: 0px; '+
                                     'border-style: solid; }'+
+        '#ossbContainer.ossb_Breeze .ossb_label {color: var(--color-character-text);}'+
+        '#ossbContainer.ossb_Elementary .ossb_label {color: black;}'+
         '#ossbContainer .ossb_data {border-color:#777; border-top-width: 1px; border-bottom-width: 1px; border-left-width: 0px; border-right-width: 1px; '+
                                    'border-top-left-radius: 0px; border-bottom-left-radius: 0px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; '+
                                    'border-style: solid; text-align: right;}'+
+        '#ossbContainer.ossb_Breeze .ossb_data {color: var(--color-character-text);}'+
+        '#ossbContainer.ossb_Elementary .ossb_data {color: black;}'+
         '#ossbContainer .ossb_half {width: calc((var(--ossb-division-size) / 2) - 8px);}'+
         '#ossbContainer .ossb_fourth {width: calc((var(--ossb-division-size) / 4) - 4px);}'+
         '#ossbContainer .ossb_sixth {width: calc((var(--ossb-division-size) / 6) - 2.667px);}'+
         '#ossbContainer .ossb_eighth {width: calc((var(--ossb-division-size) / 8) - 2px);}'+
 
-        '#ossbContainer #ossb_table_dialog {top: 15%; left:0%; background-color:rgb(255,255,255); border-color:#000; border-width:2px; overflow:hidden;'+
+        '#ossbContainer #ossb_table_dialog {top: 15%; left:0%; background-color:var(--color-widget-background); border-color:var(--color-widget-border);'+
+                                           'border-width:2px; overflow:hidden;'+
                                            'border-style: solid; border-radius: 8px; font-size: 16px; padding:12px; width:800px; max-height:80vh;}'+
 
         '#ossbContainer #ossb_top_bar {display: flex; justify-content: space-between;}'+
@@ -192,13 +272,17 @@
                                     'paddding: 0px; padding-inline-end: 1px;}'+
         '#ossbContainer .ossbButtonleft {float: left; }'+
         '#ossbContainer .ossbButtonright {float: right; }'+
-        '#ossbContainer .ossb_title {display: inline-clock; float: left; font-size: 20px; font-weight: 700; padding-top: 8px; padding-left:8px;}'+
+        '#ossbContainer .ossb_title {display: inline-clock;  float: left; font-size: 20px; font-weight: 700; padding-top: 8px; padding-left:8px;}'+
+        '#ossbContainer.ossb_Dark .ossb_title {color: var(--color-text);}'+
         '#ossbContainer svg.ossbButtonIcon {width: 1em; height: 1em; fill: currentcolor; stroke: currentColor; vertical-align: middle;}'+
         '#ossbContainer .ossb_selectors_bar {display: flex; justify-content: space-between; margin: 8px 0px 8px;}'+
         '#ossbContainer .ossb_select_label {font-size: 16px; font-width: 350; padding-right: 6px; border-style: none; border-width: 0px;}'+
+        '#ossbContainer.ossb_Elementary .ossb_select_label {color: var(--color-text);} '+
+        '#ossbContainer.ossb_Elementary #ossb_item_counts {color: var(--color-text);}'+
 
         '#ossbContainer .ossb_col_items {width: 151px; padding:11px 16px 11px; position: relative;}'+
         '#ossbContainer .ossb_col_items a {color: white; text-decoration: none;}'+
+        '#ossbContainer.ossb_Dark .ossb_col_items a {color: var(--color-character-text); text-decoration: none;}'+
         '#ossbContainer .ossb_col_type {width:110px; padding:11px 16px 11px;}'+
         '#ossbContainer .ossb_col_stage {width:135px; padding:11px 16px 11px;}'+
         '#ossbContainer .ossb_col_level {width:74px; padding:11px 16px 11px;}'+
@@ -207,10 +291,15 @@
         '#ossbContainer .ossb_first_th {border-top-left-radius: 8px}'+
         '#ossbContainer .ossb_last_th {border-top-right-radius: 8px}'+
         '#ossbContainer .ossb_headers {text-align: left; background-color:rgb(213, 213, 213); font-variant-caps:small-caps;}'+
-        '#ossbContainer .ossb_tr.radical {background-color:rgb(0, 170, 255); color:white;}'+
-        '#ossbContainer .ossb_tr.kanji {background-color:rgb(255, 0, 170); color:white;}'+
-        '#ossbContainer .ossb_tr.vocabulary {background-color:rgb(170, 0, 255); color:white;}'+
-        '#ossbContainer .ossb_tr.kana_vocabulary {background-color:rgb(170, 0, 255); color:white;}'+
+        '#ossbContainer.ossb_Dark .ossb_headers {background-color:rgb(170, 170, 170); color: var(--color-character-text);}'+
+        '#ossbContainer .ossb_tr.radical {background-color:var(--color-radical); color:white;}'+
+        '#ossbContainer.ossb_Dark .ossb_tr.radical {background-color:var(--color-radical); color: var(--color-character-text);}'+
+        '#ossbContainer .ossb_tr.kanji {background-color:var(--color-kanji); color:white;}'+
+        '#ossbContainer.ossb_Dark .ossb_tr.kanji {background-color:var(--color-kanji); color: var(--color-character-text);}'+
+        '#ossbContainer .ossb_tr.vocabulary {background-color:var(--color-vocabulary); color:white;}'+
+        '#ossbContainer.ossb_Dark .ossb_tr.vocabulary {background-color:var(--color-vocabulary); color: var(--color-character-text);}'+
+        '#ossbContainer .ossb_tr.kana_vocabulary {background-color:var(--color-vocabulary); color:white;}'+
+        '#ossbContainer.ossb_Dark .ossb_tr.kana_vocabulary {background-color:var(--color-vocabulary); color:var(--color-character-text);}'+
         '#ossbContainer svg.radical {width: 1em; fill: none; stroke: currentColor; stroke-width: 88; stroke-linecap: square; stroke-miterlimit: 2; '+
                                     'vertical-align: middle; pointer-events: none; /* remove the effect of the title tag within these images */}'+
 
@@ -222,10 +311,14 @@
         '#ossbContainer .ossb_col_items .ossb_popup::after {content: " "; position: absolute; border-width: 7px; border-style:solid;'+
                                                            'top: calc(100% + 0px); left:1.2em; '+
                                                            'border-color: black transparent transparent transparent;}'+
-        '#ossbContainer .ossb_col_items span.radical {background-color:rgb(0, 170, 255); color:white;}'+
-        '#ossbContainer .ossb_col_items span.kanji {background-color:rgb(255, 0, 170); color:white;}'+
-        '#ossbContainer .ossb_col_items span.vocabulary {background-color:rgb(170, 0, 255); color:white;}'+
-        '#ossbContainer .ossb_col_items span.kana_vocabulary {background-color:rgb(170, 0, 255); color:white;}'+
+        '#ossbContainer .ossb_col_items span.radical {background-color:var(--color-radical); color:white;}'+
+        '#ossbContainer.ossb_Dark .ossb_col_items span.radical {background-color:var(--color-radical); color:var(--color-character-text);}'+
+        '#ossbContainer .ossb_col_items span.kanji {background-color:var(--color-kanji); color:white;}'+
+        '#ossbContainer.ossb_Dark .ossb_col_items span.kanji {background-color:var(--color-kanji); color:var(--color-character-text);}'+
+        '#ossbContainer .ossb_col_items span.vocabulary {background-color:var(--color-vocabulary); color:white;}'+
+        '#ossbContainer.ossb_Dark .ossb_col_items span.vocabulary {background-color:var(--color-vocabulary); color:var(--color-character-text);}'+
+        '#ossbContainer .ossb_col_items span.kana_vocabulary {background-color:var(--color-vocabulary); color:white;}'+
+        '#ossbContainer.ossb_Dark .ossb_col_items span.kana_vocabulary {background-color:var(--color-vocabulary); color:var(--color-character-text);}'+
 
         '';
 
