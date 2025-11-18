@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wanikani Old School Stage Breakdown
 // @namespace    Wanikani prouleau
-// @version      1.1.0
+// @version      1.1.1
 // @description  Detailed breakdown of srs stages with old dashboard UI
 // @author       prouleau
 // @match        https://www.wanikani.com/*
@@ -180,7 +180,6 @@
 
         let is_dark = is_dark_theme();
         let elem = document.getElementById('ossbContainer');
-        let is_container_dark = window.getComputedStyle(elem).backgroundColor.toString().match(/\((.*)\)/)[1].split(',').slice(0,3).map(str => Number(str)).reduce((a, i) => a+i)/(255*3) < 0.5;
         if (elem === null){
             // Turbo has changed page, the observer must be stopped
             if (themeWatcher !== null && themeWatcher !== undefined) {
@@ -192,18 +191,22 @@
                 };
                 themeWatcher = null;
             };
-        } else if (!is_dark && !is_container_dark){
-            elem.classList.remove('ossb_Breeze', 'ossb_Elementary', 'ossb_Dark');
-            elem.classList.add('ossb_Light');
         } else {
-            let backgroundColor = $('body').css('background-color');
-            if (backgroundColor === BreezeDarkBackground){
-                    elem.classList.remove('ossb_Light', 'ossb_Elementary');
-                    elem.classList.add('ossb_Breeze', 'ossb_Dark');
-           } else if (backgroundColor === ElementaryDarkColor){
-                    elem.classList.remove('ossb_Light', 'ossb_Breeze');
-                    elem.classList.add('ossb_Elementary', 'ossb_Dark');
-           };
+            let is_container_dark = window.getComputedStyle(elem).backgroundColor
+                                             .toString().match(/\((.*)\)/)[1].split(',').slice(0,3).map(str => Number(str)).reduce((a, i) => a+i)/(255*3) < 0.5;
+            if (!is_dark && !is_container_dark){
+                elem.classList.remove('ossb_Breeze', 'ossb_Elementary', 'ossb_Dark');
+                elem.classList.add('ossb_Light');
+            } else {
+                let backgroundColor = $('body').css('background-color');
+                if (backgroundColor === BreezeDarkBackground){
+                        elem.classList.remove('ossb_Light', 'ossb_Elementary');
+                        elem.classList.add('ossb_Breeze', 'ossb_Dark');
+               } else if (backgroundColor === ElementaryDarkColor){
+                        elem.classList.remove('ossb_Light', 'ossb_Breeze');
+                        elem.classList.add('ossb_Elementary', 'ossb_Dark');
+               };
+            };
         };
     };
 
