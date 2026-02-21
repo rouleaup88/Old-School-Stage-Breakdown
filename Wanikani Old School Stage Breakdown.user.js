@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wanikani Old School Stage Breakdown
 // @namespace    Wanikani prouleau
-// @version      1.1.1
+// @version      1.1.2
 // @description  Detailed breakdown of srs stages with old dashboard UI
 // @author       prouleau
 // @match        https://www.wanikani.com/*
@@ -176,6 +176,7 @@
 
     function setThemeClasses(mutations, caller){
         const BreezeDarkBackground = 'rgb(49, 54, 59)';
+        const ElementaryDarkColorNew = 'rgb(21, 21, 21)';
         const ElementaryDarkColor = 'rgb(244, 244, 244)';
 
         let is_dark = is_dark_theme();
@@ -199,10 +200,11 @@
                 elem.classList.add('ossb_Light');
             } else {
                 let backgroundColor = $('body').css('background-color');
+                console.log(backgroundColor);
                 if (backgroundColor === BreezeDarkBackground){
                         elem.classList.remove('ossb_Light', 'ossb_Elementary');
                         elem.classList.add('ossb_Breeze', 'ossb_Dark');
-               } else if (backgroundColor === ElementaryDarkColor){
+               } else if (backgroundColor === ElementaryDarkColor || backgroundColor === ElementaryDarkColorNew){
                         elem.classList.remove('ossb_Light', 'ossb_Breeze');
                         elem.classList.add('ossb_Elementary', 'ossb_Dark');
                };
